@@ -45,8 +45,8 @@ const header = (replay) => {
 
     const regex = result.Branch.match(/\+\+Fortnite\+Release\-(?<major>\d+)\.(?<minor>\d*)/);
 
-    result.Major = regex.groups.major;
-    result.Minor = regex.groups.minor;
+    result.Major = regex?.groups?.major;
+    result.Minor = regex?.groups?.minor;
   } else {
     result.Changelist = replay.readUInt32();
   }
