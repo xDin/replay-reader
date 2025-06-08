@@ -45,6 +45,10 @@ class Replay {
 
     this.offset = this.lastBit;
 
+    if (!this.offsets[index]) {
+      throw Error('No offset to pop');
+    }
+
     this.lastBit = this.offsets[index];
 
     this.offsets.splice(index, this.offsets.length);
@@ -688,7 +692,7 @@ class Replay {
    */
   decryptBuffer(length) {
     if (!this.info.IsEncrypted) {
-      this.addOffsetByte(1, length);
+      this.addOffsetByte(0, length);
 
       return this;
     };

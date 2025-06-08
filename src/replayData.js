@@ -17,7 +17,7 @@ const parseReplayData = async (replay, data, globalData) => {
   }
 
   if (!replay.info.IsEncrypted) {
-    replay.popOffset(1);
+    replay.popOffset(0);
   };
 }
 
