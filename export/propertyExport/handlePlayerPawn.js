@@ -12,7 +12,7 @@ const tryGetPlayerDataFromPawn = (pawn, states) => {
   return null;
 };
 
-const handlePlayerPawn = ({ chIndex, data, globalData, states, changedProperties }) => {
+const handlePlayerPawn = ({ chIndex, data, globalData, states, changedProperties, timeSeconds }) => {
   const { actorToChannel } = globalData;
   const { pawnChannelToStateChannel, queuedPlayerPawns, players } = states;
   let playerState;
@@ -55,6 +55,17 @@ const handlePlayerPawn = ({ chIndex, data, globalData, states, changedProperties
     const key = changedProperties[i];
 
     playerState[key] = data[key];
+
+    if (key === 'ReplicatedMovement' && data[key]?.location) {
+      if (!playerState.positions) {
+        playerState.positions = [];
+      }
+
+      playerState.positions.push({
+        time: timeSeconds,
+        location: data[key].location,
+      });
+    }
   }
 };
 

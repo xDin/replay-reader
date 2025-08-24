@@ -111,6 +111,9 @@ interface PlayerElemEvent extends Event {
   eliminator: string,
   gunType: string|number,
   knocked: boolean,
+  eliminatedPosition?: FVector,
+  eliminatorPosition?: FVector,
+  distance?: number,
 }
 
 interface MatchStatsEvent extends Event {

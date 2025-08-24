@@ -53,6 +53,22 @@ const handlePlayerState = ({ chIndex, data, states, result, globalData, changedP
     playerData[key] = data[key];
   }
 
+  if (!states.playersById) {
+    states.playersById = {};
+  }
+
+  [
+    playerData.UniqueId,
+    playerData.UniqueID,
+    playerData.BotUniqueId,
+    playerData.PlayerNamePrivate,
+    playerData.PlayerID,
+  ].forEach((id) => {
+    if (id !== undefined && id !== null) {
+      states.playersById[id] = playerData;
+    }
+  });
+
   if (!playerData.bIsABot && data.PlayerNamePrivate) {
     const name = data.PlayerNamePrivate;
 
