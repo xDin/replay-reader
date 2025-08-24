@@ -4,6 +4,7 @@ const UChannel = require('../Classes/UChannel');
 const receiveNetGUIDBunch = require('./receiveNetGUIDBunch');
 const receivedNextBunch = require('./receivedNextBunch');
 const onChannelClosed = require('./onChannelClosed');
+const DEBUG_ZERO_BUNCH = !!process.env.DEBUG_ZERO_BUNCH;
 
 /**
  *
@@ -103,6 +104,13 @@ const receivedPacket = (packetArchive, timeSeconds, globals) => {
     const ignoreChannel = globals.ignoredChannels[bunch.chIndex];
 
     if (bunchDataBits === 0) {
+      if (DEBUG_ZERO_BUNCH) {
+        console.log('Zero bunch data', {
+          inPacketId: globals.inPacketId,
+          chIndex: bunch.chIndex,
+          chType: bunch.chType,
+        });
+      }
       if (bunch.bReliable && bunch.chSequence <= globals.inReliable) {
         continue;
       }
