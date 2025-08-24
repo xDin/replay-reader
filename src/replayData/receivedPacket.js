@@ -102,6 +102,34 @@ const receivedPacket = (packetArchive, timeSeconds, globals) => {
 
     const ignoreChannel = globals.ignoredChannels[bunch.chIndex];
 
+    if (bunchDataBits === 0) {
+      if (bunch.bReliable && bunch.chSequence <= globals.inReliable) {
+        continue;
+      }
+
+      if (!channel && !bunch.bReliable) {
+        if (!(bunch.bOpen && (bunch.bClose || bunch.bPartial))) {
+          continue;
+        }
+      }
+
+      if (!channel) {
+        const newChannel = {};
+
+        newChannel.channelIndex = bunch.chIndex;
+        newChannel.channelName = bunch.chName;
+        newChannel.channelType = bunch.chType;
+
+        channels[bunch.chIndex] = newChannel;
+      }
+
+      if (bunch.bClose) {
+        onChannelClosed(bunch.chIndex, channel && channel.actor, globals);
+      }
+
+      continue;
+    }
+
     if (ignoreChannel) {
       packetArchive.skipBits(bunchDataBits)
     } else {
@@ -122,14 +150,18 @@ const receivedPacket = (packetArchive, timeSeconds, globals) => {
     }
 
       if (bunch.bReliable && bunch.chSequence <= globals.inReliable) {
-        bunch.archive.popOffset(3, bunchDataBits);
+        if (bunchDataBits > 0) {
+          bunch.archive.popOffset(3, bunchDataBits);
+        }
 
       continue;
     }
 
       if (!channel && !bunch.bReliable) {
         if (!(bunch.bOpen && (bunch.bClose || bunch.bPartial))) {
-          bunch.archive.popOffset(3, bunchDataBits);
+          if (bunchDataBits > 0) {
+            bunch.archive.popOffset(3, bunchDataBits);
+          }
 
           continue;
         }
@@ -154,7 +186,7 @@ const receivedPacket = (packetArchive, timeSeconds, globals) => {
     } catch (ex) {
       console.log(ex);
       } finally {
-        if (!bunch.bPartial && !ignoreChannel) {
+        if (!bunch.bPartial && !ignoreChannel && bunchDataBits > 0) {
           bunch.archive.popOffset(3, bunchDataBits);
         }
       }
