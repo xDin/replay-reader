@@ -121,19 +121,19 @@ const receivedPacket = (packetArchive, timeSeconds, globals) => {
       receiveNetGUIDBunch(bunch.archive, globals);
     }
 
-    if (bunch.bReliable && bunch.chSequence <= globals.inReliable) {
-      bunch.archive.popOffset(3);
+      if (bunch.bReliable && bunch.chSequence <= globals.inReliable) {
+        bunch.archive.popOffset(3, bunchDataBits);
 
       continue;
     }
 
-    if (!channel && !bunch.bReliable) {
-      if (!(bunch.bOpen && (bunch.bClose || bunch.bPartial))) {
-        bunch.archive.popOffset(3);
+      if (!channel && !bunch.bReliable) {
+        if (!(bunch.bOpen && (bunch.bClose || bunch.bPartial))) {
+          bunch.archive.popOffset(3, bunchDataBits);
 
-        continue;
+          continue;
+        }
       }
-    }
 
     if (!channel) {
       const newChannel = {};
@@ -153,11 +153,11 @@ const receivedPacket = (packetArchive, timeSeconds, globals) => {
       }
     } catch (ex) {
       console.log(ex);
-    } finally {
-      if (!bunch.bPartial && !ignoreChannel) {
-        bunch.archive.popOffset(3);
+      } finally {
+        if (!bunch.bPartial && !ignoreChannel) {
+          bunch.archive.popOffset(3, bunchDataBits);
+        }
       }
-    }
   }
 };
 

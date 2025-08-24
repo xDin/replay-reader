@@ -104,12 +104,12 @@ const parsePlaybackPackets = (replay, globalData) => {
     if (packet.state === 0) {
       receivedRawPacket(packet, replay, globalData);
     } else {
-      replay.popOffset(1);
+      replay.popOffset(1, packet.size * 8);
 
       return;
     }
 
-    replay.popOffset(1);
+    replay.popOffset(1, packet.size * 8);
   }
 };
 

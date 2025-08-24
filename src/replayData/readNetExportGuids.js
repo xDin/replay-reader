@@ -15,7 +15,7 @@ const readNetExportGuids = (replay, globalData) => {
 
     internalLoadObject(replay, true, globalData);
 
-    replay.popOffset(2);
+    replay.popOffset(2, size * 8);
   }
 }
 

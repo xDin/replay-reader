@@ -142,7 +142,7 @@ const replayChunks = (replay, globalData) => {
         console.warn('Unhandled chunkType:', chunkType);
     }
 
-    replay.popOffset(0);
+      replay.popOffset(0, chunkSize * 8);
   }
 
   return chunks;
