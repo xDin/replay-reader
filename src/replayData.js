@@ -16,9 +16,9 @@ const parseReplayData = async (replay, data, globalData) => {
     parsePlaybackPackets(binaryReplay, globalData);
   }
 
-  if (!replay.info.IsEncrypted) {
-    replay.popOffset(0);
-  };
+    if (!replay.info.IsEncrypted) {
+      replay.popOffset(0, data.length * 8);
+    };
 }
 
 module.exports = parseReplayData;

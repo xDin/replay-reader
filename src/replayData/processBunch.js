@@ -69,7 +69,7 @@ const processBunch = (bunch, replay, globalData) => {
 
     if (bObjectDeleted) {
       if (numPayloadBits > 0) {
-        replay.popOffset(4);
+        replay.popOffset(4, numPayloadBits);
       }
 
       continue;
@@ -77,7 +77,7 @@ const processBunch = (bunch, replay, globalData) => {
 
     if (bunch.archive.isError) {
       if (numPayloadBits > 0) {
-        replay.popOffset(4);
+        replay.popOffset(4, numPayloadBits);
       }
 
       break;
@@ -85,7 +85,7 @@ const processBunch = (bunch, replay, globalData) => {
 
     if (!repObject || !numPayloadBits) {
       if (numPayloadBits > 0) {
-        replay.popOffset(4);
+        replay.popOffset(4, numPayloadBits);
       }
 
       continue;
@@ -93,7 +93,7 @@ const processBunch = (bunch, replay, globalData) => {
 
     receivedReplicatorBunch(bunch, replay, repObject, bOutHasRepLayout, bIsActor, globalData);
     if (numPayloadBits > 0) {
-      replay.popOffset(4);
+      replay.popOffset(4, numPayloadBits);
     }
   }
 };

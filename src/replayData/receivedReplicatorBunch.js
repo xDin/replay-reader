@@ -90,7 +90,7 @@ const receivedReplicatorBunch = (bunch, archive, repObject, bHasRepLayout, bIsAc
       }
     } else if (fieldCache.isCustomStruct) {
       if (!receiveCustomProperty(archive, fieldCache, bunch, classNetCache.pathName, globalData, staticActorId)) {
-        archive.popOffset(5);
+        archive.popOffset(5, numPayloadBits);
 
         continue;
       }
@@ -102,19 +102,19 @@ const receivedReplicatorBunch = (bunch, archive, repObject, bHasRepLayout, bIsAc
       }
 
       if (!exportGroup || !netFieldParser.willReadType(exportGroup.pathName)) {
-        archive.popOffset(5);
+        archive.popOffset(5, numPayloadBits);
 
         continue;
       }
 
       if (receiveCustomDeltaProperty(archive, exportGroup, bunch, fieldCache.EnablePropertyChecksum || false, globalData, staticActorId)) {
-        archive.popOffset(5);
+        archive.popOffset(5, numPayloadBits);
 
         continue;
       }
     }
 
-    archive.popOffset(5);
+    archive.popOffset(5, numPayloadBits);
   }
 };
 

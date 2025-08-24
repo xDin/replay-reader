@@ -93,9 +93,9 @@ const parseCheckpoint = async (replay, data, globalData) => {
 
   parsePlaybackPackets(binaryReplay, globalData);
 
-  if (!replay.info.IsEncrypted) {
-    replay.popOffset(1)
-  }
+    if (!replay.info.IsEncrypted) {
+      replay.popOffset(1, data.sizeInBytes * 8)
+    }
 };
 
 module.exports = parseCheckpoint;
