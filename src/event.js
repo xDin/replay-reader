@@ -32,11 +32,13 @@ const parsePlayer = (replay) => {
  */
 const parsePlayerElim = (result, replay) => {
   if (replay.header.EngineNetworkVersion >= 11 && replay.header.Major >= 9) {
-    if (replay.header.EngineNetworkVersion >= 23) {
-      replay.skipBytes(5 + (80 * 2));
-    } else {
-      replay.skipBytes(85);
+    let skip = 85; // version + unknown byte + two transforms
+
+    if (replay.header.EngineNetworkVersion >= 34) {
+      skip += 80; // additional data introduced in newer engine versions
     }
+
+    replay.skipBytes(skip);
 
     result.eliminated = parsePlayer(replay);
     result.eliminator = parsePlayer(replay);
