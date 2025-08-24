@@ -61,6 +61,7 @@ class GlobalData {
     this.additionalStates = [
       'pawnChannelToStateChannel',
       'queuedPlayerPawns',
+      'playersById',
     ];
 
     this.exportEmitter = new EventEmitter();

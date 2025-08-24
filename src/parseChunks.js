@@ -131,6 +131,47 @@ const parseChunks = async (replay, chunks, globalData) => {
       }
     }
   }
+  const { states } = globalData;
+
+  const getLocationAtTime = (positions, t) => {
+    if (!positions || !positions.length) {
+      return null;
+    }
+
+    for (let i = positions.length - 1; i >= 0; i -= 1) {
+      if (positions[i].time <= t) {
+        return positions[i].location;
+      }
+    }
+
+    return positions[0].location;
+  };
+
+  events.forEach((evt) => {
+    if (evt.group !== 'playerElim') {
+      return;
+    }
+
+    const timeSeconds = evt.startTime / 1000;
+    const eliminatedPlayer = states.playersById?.[evt.eliminated];
+    const eliminatorPlayer = states.playersById?.[evt.eliminator];
+
+    if (eliminatedPlayer) {
+      evt.eliminatedPosition = getLocationAtTime(eliminatedPlayer.positions, timeSeconds);
+    }
+
+    if (eliminatorPlayer) {
+      evt.eliminatorPosition = getLocationAtTime(eliminatorPlayer.positions, timeSeconds);
+    }
+
+    if (evt.eliminatedPosition && evt.eliminatorPosition) {
+      const dx = evt.eliminatedPosition.x - evt.eliminatorPosition.x;
+      const dy = evt.eliminatedPosition.y - evt.eliminatorPosition.y;
+      const dz = evt.eliminatedPosition.z - evt.eliminatorPosition.z;
+
+      evt.distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+  });
 
   return events;
 };
