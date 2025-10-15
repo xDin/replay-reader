@@ -1,0 +1,14 @@
+{
+  "path": ["FortPlayerStateAthena_C_ClassNetCache"],
+  "customExportName": "FortniteGame.FortPlayerStateAthena:OnPlayerElimination",
+  "parseLevel": 1,
+  "type": "ClassNetCache",
+  "properties": {
+    "OnPlayerElimination": {
+      "name": "OnPlayerElimination",
+      "type": "/Script/FortniteGame.FortPlayerStateAthena:OnPlayerElimination",
+      "isFunction": true,
+      "isCustomStruct": false
+    }
+  }
+}

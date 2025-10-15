@@ -1,10 +1,20 @@
 const parse = require('./index.js');
 const elimsClass = require('./exports/elims_classnetcache.json');
 const elimsPayload = require('./exports/elims_payload.json');
+const elimsPlayerStateClass = require('./exports/elims_playerstate_classnetcache.json');
+const elimsPlayerStatePayload = require('./exports/elims_playerstate_payload.json');
 
-const ELIMINATION_EVENT = 'FortniteGame.AthenaPlayerState:OnPlayerEliminationFeedUpdated';
+const ELIMINATION_EVENTS = [
+  'FortniteGame.AthenaPlayerState:OnPlayerEliminationFeedUpdated',
+  'FortniteGame.FortPlayerStateAthena:OnPlayerElimination'
+];
 const DEFAULT_NOT_READING_GROUPS = ['PlayerPawn_Athena.PlayerPawn_Athena_C'];
-const DEFAULT_EXPORTS = [elimsClass, elimsPayload];
+const DEFAULT_EXPORTS = [
+  elimsClass,
+  elimsPayload,
+  elimsPlayerStateClass,
+  elimsPlayerStatePayload
+];
 const noop = () => {};
 
 const CM_TO_METERS = 0.01;
@@ -84,23 +94,49 @@ const normalizeElimination = (data, timeSeconds) => ({
   t: data.TimeSeconds ?? timeSeconds
 });
 
+const createEliminationKey = (elim) => {
+  try {
+    return JSON.stringify({
+      killer: elim.killer,
+      victim: elim.victim,
+      weapon: elim.weapon,
+      knocked: elim.knocked,
+      t: elim.t
+    });
+  } catch (err) {
+    return undefined;
+  }
+};
+
 const makeEliminationHandler = ({ onElimination } = {}) =>
   ({ propertyExportEmitter, parsingEmitter }) => {
+    const seen = new Set();
     parsingEmitter.on('log', noop);
-    propertyExportEmitter.on(
-      ELIMINATION_EVENT,
-      ({ data, result, timeSeconds }) => {
-        const normalized = normalizeElimination(data, timeSeconds);
+    ELIMINATION_EVENTS.forEach((eventName) => {
+      propertyExportEmitter.on(
+        eventName,
+        ({ data, result, timeSeconds }) => {
+          const normalized = normalizeElimination(data, timeSeconds);
+          const key = createEliminationKey(normalized);
 
-        result.events ??= {};
-        result.events.elims ??= [];
-        result.events.elims.push(normalized);
+          if (key && seen.has(key)) {
+            return;
+          }
 
-        if (typeof onElimination === 'function') {
-          onElimination(normalized, { data, result, timeSeconds });
+          if (key) {
+            seen.add(key);
+          }
+
+          result.eliminations ??= {};
+          result.eliminations.elims ??= [];
+          result.eliminations.elims.push(normalized);
+
+          if (typeof onElimination === 'function') {
+            onElimination(normalized, { data, result, timeSeconds });
+          }
         }
-      }
-    );
+      );
+    });
   };
 
 const composeHandlers = (primary, secondary) => {
@@ -140,16 +176,18 @@ const loadReplayEliminations = async (buffer, { onElimination, parseOptions = {}
 
   return {
     result,
-    elims: result?.events?.elims ?? []
+    elims: result?.eliminations?.elims ?? []
   };
 };
 
 module.exports = {
-  ELIMINATION_EVENT,
+  ELIMINATION_EVENTS,
   DEFAULT_EXPORTS,
   DEFAULT_NOT_READING_GROUPS,
   elimsClass,
   elimsPayload,
+  elimsPlayerStateClass,
+  elimsPlayerStatePayload,
   loadReplayEliminations,
   makeEliminationHandler
 };
