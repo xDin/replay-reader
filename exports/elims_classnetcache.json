@@ -1,5 +1,6 @@
 {
   "path": ["Athena_PlayerState_C_ClassNetCache"],
+  "customExportName": "FortniteGame.AthenaPlayerState:OnPlayerEliminationFeedUpdated",
   "parseLevel": 1,
   "type": "ClassNetCache",
   "properties": {
