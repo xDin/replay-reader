@@ -65,19 +65,12 @@ const extractDistance = (data) => {
   const directDistance = [
     data.Distance,
     data.DistanceMeters,
-    data.EliminationDistance
+    data.EliminationDistance,
+    data.DistanceMetersSquared
   ].map(sanitizeNumber).find((value) => value !== undefined);
 
   if (directDistance !== undefined) {
     return directDistance;
-  }
-
-  const squaredMeters = sanitizeNumber(data.DistanceMetersSquared);
-  if (squaredMeters !== undefined) {
-    const meters = Math.sqrt(squaredMeters);
-    if (Number.isFinite(meters)) {
-      return meters;
-    }
   }
 
   const vectorDistance = deriveDistanceFromLocations(
