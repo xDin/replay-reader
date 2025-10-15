@@ -161,9 +161,16 @@ const loadReplayEliminations = async (buffer, { onElimination, parseOptions = {}
     ...rest
   } = parseOptions;
 
-  const mergedExports = Array.isArray(customNetFieldExports)
-    ? [...DEFAULT_EXPORTS, ...customNetFieldExports]
-    : [...DEFAULT_EXPORTS];
+  const additionalExports = Array.isArray(customNetFieldExports)
+    ? customNetFieldExports
+    : customNetFieldExports
+      ? [customNetFieldExports]
+      : [];
+
+  const mergedExports = filterValidNetFieldExports(
+    [...DEFAULT_EXPORTS, ...additionalExports],
+    { debug: debug ?? false }
+  );
 
   const result = await parse(buffer, {
     debug: debug ?? false,
