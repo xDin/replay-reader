@@ -1,0 +1,15 @@
+{
+  "path": ["/Script/FortniteGame.AthenaPlayerState:OnPlayerEliminationFeedUpdated"],
+  "parseLevel": 1,
+  "exportGroup": "events",
+  "exportName": "elims",
+  "exportType": "array",
+  "properties": {
+    "EliminatorId": { "name": "EliminatorId", "parseFunction": "readNetId", "parseType": "default" },
+    "EliminatedId": { "name": "EliminatedId", "parseFunction": "readNetId", "parseType": "default" },
+    "GunType":      { "name": "GunType",      "parseFunction": "readInt32", "parseType": "default" },
+    "bKnocked":     { "name": "bKnocked",     "parseFunction": "readBit",   "parseType": "default" },
+    "Distance":     { "name": "Distance",     "parseFunction": "readInt32", "parseType": "default" },
+    "TimeSeconds":  { "name": "TimeSeconds",  "parseFunction": "readInt32", "parseType": "default" }
+  }
+}
