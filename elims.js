@@ -7,12 +7,80 @@ const DEFAULT_NOT_READING_GROUPS = ['PlayerPawn_Athena.PlayerPawn_Athena_C'];
 const DEFAULT_EXPORTS = [elimsClass, elimsPayload];
 const noop = () => {};
 
+const CM_TO_METERS = 0.01;
+
+const sanitizeNumber = (value) => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  if (value && typeof value === 'object') {
+    const possible = Object.values(value).find((candidate) => typeof candidate === 'number');
+    if (typeof possible === 'number' && Number.isFinite(possible)) {
+      return possible;
+    }
+  }
+
+  return undefined;
+};
+
+const deriveDistanceFromLocations = (eliminatorLocation, eliminatedLocation) => {
+  if (!eliminatorLocation || !eliminatedLocation) {
+    return undefined;
+  }
+
+  const keys = ['x', 'y', 'z'];
+  const values = keys.map((key) => {
+    const eliminatorCoord = sanitizeNumber(eliminatorLocation[key]);
+    const eliminatedCoord = sanitizeNumber(eliminatedLocation[key]);
+
+    if (eliminatorCoord === undefined || eliminatedCoord === undefined) {
+      return undefined;
+    }
+
+    return eliminatorCoord - eliminatedCoord;
+  });
+
+  if (values.some((value) => value === undefined)) {
+    return undefined;
+  }
+
+  const squared = values.reduce((total, delta) => total + delta * delta, 0);
+  const meters = Math.sqrt(squared) * CM_TO_METERS;
+
+  return Number.isFinite(meters) ? meters : undefined;
+};
+
+const extractDistance = (data) => {
+  const directDistance = [
+    data.Distance,
+    data.DistanceMeters,
+    data.EliminationDistance,
+    data.DistanceMetersSquared
+  ].map(sanitizeNumber).find((value) => value !== undefined);
+
+  if (directDistance !== undefined) {
+    return directDistance;
+  }
+
+  const vectorDistance = deriveDistanceFromLocations(
+    data.EliminatorLocation ?? data.FinisherLocation,
+    data.EliminatedLocation ?? data.VictimLocation
+  );
+
+  if (vectorDistance !== undefined) {
+    return vectorDistance;
+  }
+
+  return undefined;
+};
+
 const normalizeElimination = (data, timeSeconds) => ({
   killer: data.EliminatorId,
   victim: data.EliminatedId,
   weapon: data.GunType,
   knocked: !!data.bKnocked,
-  distance: data.Distance,
+  distance: extractDistance(data),
   t: data.TimeSeconds ?? timeSeconds
 });
 
