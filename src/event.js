@@ -30,6 +30,49 @@ const parsePlayer = (replay) => {
  * @param {object} result the event
  * @param {Replay} replay the replay
  */
+const MAX_REASONABLE_COORDINATE = 5e6;
+
+const readFloat32Safe = (replay) => {
+  if (!replay.canRead(32)) {
+    return undefined;
+  }
+
+  const previousOffset = replay.offset;
+  const value = replay.readFloat32();
+
+  if (!Number.isFinite(value)) {
+    replay.offset = previousOffset;
+    replay.isError = false;
+    return undefined;
+  }
+
+  return value;
+};
+
+const readVectorCandidate = (replay) => {
+  if (!replay.canRead(32 * 3)) {
+    return undefined;
+  }
+
+  const previousOffset = replay.offset;
+  const vector = {
+    x: replay.readFloat32(),
+    y: replay.readFloat32(),
+    z: replay.readFloat32(),
+  };
+
+  const values = [vector.x, vector.y, vector.z];
+  const hasInvalidComponent = values.some((value) => !Number.isFinite(value) || Math.abs(value) > MAX_REASONABLE_COORDINATE);
+
+  if (hasInvalidComponent) {
+    replay.offset = previousOffset;
+    replay.isError = false;
+    return undefined;
+  }
+
+  return vector;
+};
+
 const parsePlayerElim = (result, replay) => {
   if (replay.header.EngineNetworkVersion >= 11 && replay.header.Major >= 9) {
     if (replay.header.EngineNetworkVersion >= 23) {
@@ -59,6 +102,22 @@ const parsePlayerElim = (result, replay) => {
 
   result.gunType = weaponTypes[gunType] || gunType;
   result.knocked = replay.readBoolean();
+
+  const eliminatedLocation = readVectorCandidate(replay);
+  const eliminatorLocation = readVectorCandidate(replay);
+  const distance = readFloat32Safe(replay);
+
+  if (eliminatedLocation) {
+    result.eliminatedLocation = eliminatedLocation;
+  }
+
+  if (eliminatorLocation) {
+    result.eliminatorLocation = eliminatorLocation;
+  }
+
+  if (distance !== undefined) {
+    result.distance = distance;
+  }
 };
 
 /**
@@ -106,6 +165,9 @@ const event = (replay, info) => {
 
   if (info.group === 'playerElim') {
     parsePlayerElim(result, decryptedEvent);
+    if (typeof info.startTime === 'number') {
+      result.timeSeconds = info.startTime / 1000;
+    }
   } else if (info.metadata === 'AthenaMatchStats') {
     parseMatchStats(result, decryptedEvent);
   } else if (info.metadata === 'AthenaMatchTeamStats') {
