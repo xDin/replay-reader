@@ -2,13 +2,7 @@ const parse = require('./index.js');
 const elimsClass = require('./exports/elims_classnetcache.json');
 const elimsPayload = require('./exports/elims_payload.json');
 
-const fallbackEventPath = Array.isArray(elimsPayload.path)
-  ? elimsPayload.path[0]
-  : undefined;
-
-const ELIMINATION_EVENT =
-  elimsPayload.exportName || fallbackEventPath ||
-  '/Script/FortniteGame.AthenaPlayerState:OnPlayerEliminationFeedUpdated';
+const ELIMINATION_EVENT = 'FortniteGame.AthenaPlayerState:OnPlayerEliminationFeedUpdated';
 const DEFAULT_NOT_READING_GROUPS = ['PlayerPawn_Athena.PlayerPawn_Athena_C'];
 const DEFAULT_EXPORTS = [elimsClass, elimsPayload];
 const noop = () => {};
