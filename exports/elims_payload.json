@@ -1,7 +1,6 @@
 {
   "path": ["/Script/FortniteGame.AthenaPlayerState:OnPlayerEliminationFeedUpdated"],
   "parseLevel": 1,
-  "customExportName": "elims",
   "exportGroup": "events",
   "exportName": "elims",
   "exportType": "array",

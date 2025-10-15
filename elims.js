@@ -2,42 +2,7 @@ const parse = require('./index.js');
 const elimsClass = require('./exports/elims_classnetcache.json');
 const elimsPayload = require('./exports/elims_payload.json');
 
-const normalizePath = (path) => {
-  if (typeof path !== 'string') {
-    return [];
-  }
-
-  const trimmed = path.split('/').pop();
-  return trimmed ? [path, trimmed] : [path];
-};
-
-const collectEliminationEventNames = () => {
-  const names = new Set();
-
-  if (typeof elimsPayload.customExportName === 'string') {
-    names.add(elimsPayload.customExportName);
-  }
-
-  if (typeof elimsPayload.exportName === 'string') {
-    names.add(elimsPayload.exportName);
-  }
-
-  const paths = Array.isArray(elimsPayload.path)
-    ? elimsPayload.path.flatMap(normalizePath)
-    : normalizePath(elimsPayload.path);
-
-  paths.forEach((name) => {
-    if (typeof name === 'string' && name.length > 0) {
-      names.add(name);
-    }
-  });
-
-  names.add('FortniteGame.AthenaPlayerState:OnPlayerEliminationFeedUpdated');
-
-  return [...names];
-};
-
-const ELIMINATION_EVENTS = collectEliminationEventNames();
+const ELIMINATION_EVENT = 'FortniteGame.AthenaPlayerState:OnPlayerEliminationFeedUpdated';
 const DEFAULT_NOT_READING_GROUPS = ['PlayerPawn_Athena.PlayerPawn_Athena_C'];
 const DEFAULT_EXPORTS = [elimsClass, elimsPayload];
 const noop = () => {};
@@ -54,21 +19,20 @@ const normalizeElimination = (data, timeSeconds) => ({
 const makeEliminationHandler = ({ onElimination } = {}) =>
   ({ propertyExportEmitter, parsingEmitter }) => {
     parsingEmitter.on('log', noop);
-    const listener = ({ data, result, timeSeconds }) => {
-      const normalized = normalizeElimination(data, timeSeconds);
+    propertyExportEmitter.on(
+      ELIMINATION_EVENT,
+      ({ data, result, timeSeconds }) => {
+        const normalized = normalizeElimination(data, timeSeconds);
 
-      result.events ??= {};
-      result.events.elims ??= [];
-      result.events.elims.push(normalized);
+        result.events ??= {};
+        result.events.elims ??= [];
+        result.events.elims.push(normalized);
 
-      if (typeof onElimination === 'function') {
-        onElimination(normalized, { data, result, timeSeconds });
+        if (typeof onElimination === 'function') {
+          onElimination(normalized, { data, result, timeSeconds });
+        }
       }
-    };
-
-    ELIMINATION_EVENTS.forEach((eventName) => {
-      propertyExportEmitter.on(eventName, listener);
-    });
+    );
   };
 
 const composeHandlers = (primary, secondary) => {
@@ -113,7 +77,7 @@ const loadReplayEliminations = async (buffer, { onElimination, parseOptions = {}
 };
 
 module.exports = {
-  ELIMINATION_EVENTS,
+  ELIMINATION_EVENT,
   DEFAULT_EXPORTS,
   DEFAULT_NOT_READING_GROUPS,
   elimsClass,
