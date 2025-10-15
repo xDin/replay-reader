@@ -174,6 +174,19 @@ const loadReplayEliminations = async (buffer, { onElimination, parseOptions = {}
     notReadingGroups: notReadingGroups ?? DEFAULT_NOT_READING_GROUPS
   });
 
+  const propertyElims = Array.isArray(result?.events?.elims)
+    ? result.events.elims
+    : [];
+  const rawChunkEvents = Array.isArray(result?.rawEvents)
+    ? result.rawEvents
+    : [];
+  const combinedElims = combineEliminationData(propertyElims, rawChunkEvents);
+
+  if (result) {
+    result.events ??= {};
+    result.events.elims = combinedElims;
+  }
+
   return {
     result,
     elims: result?.eliminations?.elims ?? []
