@@ -91,6 +91,7 @@ const parse = async (data, options) => {
     info,
     chunks,
     events,
+    rawEvents: events,
     ...globalData.result,
   };
 }

@@ -79,6 +79,23 @@ class NetFieldParser {
 
   constructor(globalData) {
     const handleExport = (fieldExport) => {
+      if (!fieldExport || !Array.isArray(fieldExport.path) || fieldExport.path.length === 0) {
+        const identifier = fieldExport?.customExportName
+          || fieldExport?.exportName
+          || fieldExport?.type
+          || 'unknown';
+
+        if (!this.informedError[identifier]) {
+          this.informedError[identifier] = true;
+
+          if (globalData.debug) {
+            console.warn(`Skipping netFieldExport without a valid path: ${identifier}`);
+          }
+        }
+
+        return;
+      }
+
       if (fieldExport.parseLevel > globalData.parseLevel) {
         return;
       }
