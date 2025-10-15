@@ -3,7 +3,7 @@ const path = require('path');
 const handleEventEmitter = require('./export/handleEventEmitter');
 const {
   loadReplayEliminations,
-  ELIMINATION_EVENT
+  ELIMINATION_EVENTS
 } = require('./elims');
 
 const usage = 'usage: node debug-elims.js <path/to/file.replay> [--max-samples=N] [--include-payloads] [--debug-netfields]';
@@ -171,7 +171,7 @@ async function main() {
     process.exit(1);
   }
 
-  const elimCount = result?.events?.elims?.length ?? 0;
+  const elimCount = result?.eliminations?.elims?.length ?? 0;
   const observedEventNames = Array.from(eventCounts.keys()).sort();
 
   console.log(`\nParsed replay: ${absoluteReplayPath}`);
@@ -207,7 +207,10 @@ async function main() {
     });
   }
 
-  console.log(`\nElimination handler listens to: ${ELIMINATION_EVENT}`);
+  console.log('\nElimination handler listens to:');
+  ELIMINATION_EVENTS.forEach((eventName) => {
+    console.log(`  • ${eventName}`);
+  });
 
   if (options.debugNetfields) {
     console.log('\nNet field export debug files were written next to the replay-reader executable.');

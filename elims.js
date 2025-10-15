@@ -1,73 +1,20 @@
 const parse = require('./index.js');
 const elimsClass = require('./exports/elims_classnetcache.json');
 const elimsPayload = require('./exports/elims_payload.json');
+const elimsPlayerStateClass = require('./exports/elims_playerstate_classnetcache.json');
+const elimsPlayerStatePayload = require('./exports/elims_playerstate_payload.json');
 
-const ELIMINATION_EVENT = 'FortniteGame.AthenaPlayerState:OnPlayerEliminationFeedUpdated';
+const ELIMINATION_EVENTS = [
+  'FortniteGame.AthenaPlayerState:OnPlayerEliminationFeedUpdated',
+  'FortniteGame.FortPlayerStateAthena:OnPlayerElimination'
+];
 const DEFAULT_NOT_READING_GROUPS = ['PlayerPawn_Athena.PlayerPawn_Athena_C'];
-
-const flattenNetFieldExports = (entries) => {
-  const stack = Array.isArray(entries) ? [...entries] : [entries];
-  const flattened = [];
-
-  while (stack.length) {
-    const entry = stack.shift();
-
-    if (entry === undefined || entry === null) {
-      continue;
-    }
-
-    if (Array.isArray(entry)) {
-      stack.unshift(...entry);
-      continue;
-    }
-
-    flattened.push(entry);
-  }
-
-  return flattened;
-};
-
-const describeNetFieldExport = (entry) => {
-  if (!entry || typeof entry !== 'object') {
-    return String(entry);
-  }
-
-  if (entry.customExportName) {
-    return entry.customExportName;
-  }
-
-  if (entry.exportName) {
-    return entry.exportName;
-  }
-
-  if (Array.isArray(entry.path)) {
-    return entry.path.join(',');
-  }
-
-  return JSON.stringify(entry);
-};
-
-const filterValidNetFieldExports = (entries, { debug } = {}) => {
-  const valid = [];
-  const invalid = [];
-
-  flattenNetFieldExports(entries).forEach((entry) => {
-    if (entry && Array.isArray(entry.path) && entry.path.length > 0) {
-      valid.push(entry);
-    } else if (entry !== undefined && entry !== null) {
-      invalid.push(entry);
-    }
-  });
-
-  if (invalid.length && debug) {
-    const labels = invalid.map(describeNetFieldExport).join(', ');
-    console.warn(`Ignoring ${invalid.length} netFieldExport definition(s) without a valid path: ${labels}`);
-  }
-
-  return valid;
-};
-
-const DEFAULT_EXPORTS = filterValidNetFieldExports([elimsClass, elimsPayload]);
+const DEFAULT_EXPORTS = [
+  elimsClass,
+  elimsPayload,
+  elimsPlayerStateClass,
+  elimsPlayerStatePayload
+];
 const noop = () => {};
 
 const CM_TO_METERS = 0.01;
@@ -85,19 +32,6 @@ const sanitizeNumber = (value) => {
   }
 
   return undefined;
-};
-
-const normalizeDistanceValue = (value) => {
-  const numeric = sanitizeNumber(value);
-
-  if (numeric === undefined) {
-    return undefined;
-  }
-
-  const absolute = Math.abs(numeric);
-  const converted = absolute > 1000 ? absolute * CM_TO_METERS : absolute;
-
-  return Number.isFinite(converted) ? converted : undefined;
 };
 
 const deriveDistanceFromLocations = (eliminatorLocation, eliminatedLocation) => {
@@ -131,21 +65,12 @@ const extractDistance = (data) => {
   const directDistance = [
     data.Distance,
     data.DistanceMeters,
-    data.EliminationDistance
-  ].map(normalizeDistanceValue).find((value) => value !== undefined);
+    data.EliminationDistance,
+    data.DistanceMetersSquared
+  ].map(sanitizeNumber).find((value) => value !== undefined);
 
   if (directDistance !== undefined) {
     return directDistance;
-  }
-
-  const squaredDistance = sanitizeNumber(data.DistanceMetersSquared);
-
-  if (squaredDistance !== undefined) {
-    const sqrt = Math.sqrt(Math.abs(squaredDistance));
-
-    if (Number.isFinite(sqrt)) {
-      return sqrt;
-    }
   }
 
   const vectorDistance = deriveDistanceFromLocations(
@@ -160,228 +85,58 @@ const extractDistance = (data) => {
   return undefined;
 };
 
-const normalizePropertyElimination = (data, timeSeconds) => ({
+const normalizeElimination = (data, timeSeconds) => ({
   killer: data.EliminatorId,
   victim: data.EliminatedId,
   weapon: data.GunType,
   knocked: !!data.bKnocked,
   distance: extractDistance(data),
-  eliminatorLocation: data.EliminatorLocation ?? data.FinisherLocation,
-  eliminatedLocation: data.EliminatedLocation ?? data.VictimLocation,
-  t: sanitizeNumber(data.TimeSeconds ?? timeSeconds)
+  t: data.TimeSeconds ?? timeSeconds
 });
 
-const toComparableKeyPart = (value) => {
-  if (value === null || value === undefined) {
-    return String(value);
-  }
-
-  if (typeof value === 'object') {
-    try {
-      return JSON.stringify(value);
-    } catch (err) {
-      if (typeof value.toString === 'function') {
-        return value.toString();
-      }
-
-      return '[object]';
-    }
-  }
-
-  return String(value);
-};
-
-const buildParticipantsKey = (elim) => (
-  `${toComparableKeyPart(elim.killer)}|${toComparableKeyPart(elim.victim)}`
-);
-
-const buildTimeKey = (time) => {
-  const numeric = sanitizeNumber(time);
-
-  if (!Number.isFinite(numeric)) {
-    return 'na';
-  }
-
-  return (Math.round(numeric * 1000) / 1000).toFixed(3);
-};
-
-const chooseWeaponValue = (current, incoming) => {
-  if (incoming === undefined || incoming === null) {
-    return current;
-  }
-
-  if (current === undefined || current === null) {
-    return incoming;
-  }
-
-  if (typeof incoming === 'string' && typeof current !== 'string') {
-    return incoming;
-  }
-
-  return current;
-};
-
-const mergeEliminationRecord = (target, source) => {
-  if (target.killer === undefined && source.killer !== undefined) {
-    target.killer = source.killer;
-  }
-
-  if (target.victim === undefined && source.victim !== undefined) {
-    target.victim = source.victim;
-  }
-
-  target.weapon = chooseWeaponValue(target.weapon, source.weapon);
-
-  if (target.distance === undefined && source.distance !== undefined) {
-    target.distance = source.distance;
-  }
-
-  if (!target.eliminatorLocation && source.eliminatorLocation) {
-    target.eliminatorLocation = source.eliminatorLocation;
-  }
-
-  if (!target.eliminatedLocation && source.eliminatedLocation) {
-    target.eliminatedLocation = source.eliminatedLocation;
-  }
-
-  if (source.knocked !== undefined) {
-    if (target.knocked === undefined) {
-      target.knocked = !!source.knocked;
-    } else {
-      target.knocked = target.knocked || !!source.knocked;
-    }
-  }
-
-  const sourceTime = sanitizeNumber(source.t);
-  const targetTime = sanitizeNumber(target.t);
-
-  if (!Number.isFinite(targetTime) && Number.isFinite(sourceTime)) {
-    target.t = sourceTime;
-  }
-};
-
-const normalizeChunkElimination = (event) => {
-  if (!event || event.group !== 'playerElim') {
+const createEliminationKey = (elim) => {
+  try {
+    return JSON.stringify({
+      killer: elim.killer,
+      victim: elim.victim,
+      weapon: elim.weapon,
+      knocked: elim.knocked,
+      t: elim.t
+    });
+  } catch (err) {
     return undefined;
   }
-
-  return {
-    killer: event.eliminator,
-    victim: event.eliminated,
-    weapon: event.gunType,
-    knocked: event.knocked,
-    distance: normalizeDistanceValue(
-      event.distance ?? event.Distance ?? event.distanceMeters ?? event.EliminationDistance
-    ),
-    eliminatorLocation: event.eliminatorLocation ?? event.finisherLocation,
-    eliminatedLocation: event.eliminatedLocation ?? event.victimLocation,
-    t: sanitizeNumber(event.timeSeconds)
-  };
-};
-
-const combineEliminationData = (propertyElims = [], rawChunkEvents = []) => {
-  const participantStore = new Map();
-
-  const register = (elim) => {
-    if (!elim) {
-      return;
-    }
-
-    const participantKey = buildParticipantsKey(elim);
-    const timeKey = buildTimeKey(elim.t);
-
-    if (!participantStore.has(participantKey)) {
-      participantStore.set(participantKey, new Map());
-    }
-
-    const timeMap = participantStore.get(participantKey);
-    let record = timeMap.get(timeKey);
-
-    if (!record && timeKey !== 'na') {
-      record = timeMap.get('na');
-
-      if (record) {
-        timeMap.delete('na');
-        timeMap.set(timeKey, record);
-      }
-    }
-
-    if (!record) {
-      timeMap.set(timeKey, { ...elim });
-      return;
-    }
-
-    mergeEliminationRecord(record, elim);
-  };
-
-  propertyElims.forEach((elim) => register(elim));
-
-  rawChunkEvents
-    .map(normalizeChunkElimination)
-    .filter((elim) => elim && (elim.killer !== undefined || elim.victim !== undefined))
-    .forEach((elim) => register(elim));
-
-  const merged = [];
-
-  participantStore.forEach((timeMap) => {
-    timeMap.forEach((record) => {
-      const normalizedDistance = normalizeDistanceValue(record.distance);
-      const derivedDistance = deriveDistanceFromLocations(
-        record.eliminatorLocation,
-        record.eliminatedLocation
-      );
-      const distance = normalizedDistance ?? derivedDistance;
-
-      const time = sanitizeNumber(record.t);
-      const finalTime = Number.isFinite(time) ? time : undefined;
-
-      merged.push({
-        killer: record.killer,
-        victim: record.victim,
-        weapon: record.weapon,
-        knocked: !!record.knocked,
-        distance,
-        t: finalTime
-      });
-    });
-  });
-
-  merged.sort((a, b) => {
-    if (a.t === undefined && b.t === undefined) {
-      return 0;
-    }
-
-    if (a.t === undefined) {
-      return 1;
-    }
-
-    if (b.t === undefined) {
-      return -1;
-    }
-
-    return a.t - b.t;
-  });
-
-  return merged;
 };
 
 const makeEliminationHandler = ({ onElimination } = {}) =>
   ({ propertyExportEmitter, parsingEmitter }) => {
+    const seen = new Set();
     parsingEmitter.on('log', noop);
-    propertyExportEmitter.on(
-      ELIMINATION_EVENT,
-      ({ data, result, timeSeconds }) => {
-        const normalized = normalizePropertyElimination(data, timeSeconds);
+    ELIMINATION_EVENTS.forEach((eventName) => {
+      propertyExportEmitter.on(
+        eventName,
+        ({ data, result, timeSeconds }) => {
+          const normalized = normalizeElimination(data, timeSeconds);
+          const key = createEliminationKey(normalized);
 
-        result.events ??= {};
-        result.events.elims ??= [];
-        result.events.elims.push(normalized);
+          if (key && seen.has(key)) {
+            return;
+          }
 
-        if (typeof onElimination === 'function') {
-          onElimination(normalized, { data, result, timeSeconds });
+          if (key) {
+            seen.add(key);
+          }
+
+          result.eliminations ??= {};
+          result.eliminations.elims ??= [];
+          result.eliminations.elims.push(normalized);
+
+          if (typeof onElimination === 'function') {
+            onElimination(normalized, { data, result, timeSeconds });
+          }
         }
-      }
-    );
+      );
+    });
   };
 
 const composeHandlers = (primary, secondary) => {
@@ -441,16 +196,18 @@ const loadReplayEliminations = async (buffer, { onElimination, parseOptions = {}
 
   return {
     result,
-    elims: combinedElims
+    elims: result?.eliminations?.elims ?? []
   };
 };
 
 module.exports = {
-  ELIMINATION_EVENT,
+  ELIMINATION_EVENTS,
   DEFAULT_EXPORTS,
   DEFAULT_NOT_READING_GROUPS,
   elimsClass,
   elimsPayload,
+  elimsPlayerStateClass,
+  elimsPlayerStatePayload,
   loadReplayEliminations,
   makeEliminationHandler
 };

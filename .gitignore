@@ -1,7 +1,6 @@
 debug/
 node_modules/
 log.log
-*.replay
 netfieldexports.txt
 notReadingGroups.txt
 netGuidToPathName.txt
