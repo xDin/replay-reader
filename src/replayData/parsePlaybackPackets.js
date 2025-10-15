@@ -27,7 +27,9 @@ const receivedRawPacket = (packet, replay, globalData) => {
   try {
     receivedPacket(replay, packet.timeSeconds, globalData);
   } catch (ex) {
-    console.log(ex);
+    replay.popOffset(2, bitSize, true);
+
+    throw ex;
   }
 
   replay.popOffset(2, bitSize);
@@ -104,7 +106,7 @@ const parsePlaybackPackets = (replay, globalData) => {
     if (packet.state === 0) {
       receivedRawPacket(packet, replay, globalData);
     } else {
-      replay.popOffset(1);
+      
 
       return;
     }

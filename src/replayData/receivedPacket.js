@@ -145,6 +145,7 @@ const receivedPacket = (packetArchive, timeSeconds, globals) => {
       channels[bunch.chIndex] = newChannel;
     }
 
+    let bunchError;
     try {
       if (!ignoreChannel) {
         receivedNextBunch(bunch, globals);
@@ -152,11 +153,14 @@ const receivedPacket = (packetArchive, timeSeconds, globals) => {
         onChannelClosed(bunch.chIndex, channel.actor, globals);
       }
     } catch (ex) {
-      console.log(ex);
+      bunchError = ex;
     } finally {
       if (!bunch.bPartial && !ignoreChannel) {
-        bunch.archive.popOffset(3);
+        bunch.archive.popOffset(3, bunchDataBits, !!bunchError);
       }
+    }
+    if (bunchError) {
+      throw bunchError;
     }
   }
 };

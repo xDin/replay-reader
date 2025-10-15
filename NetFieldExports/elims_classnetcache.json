@@ -1,0 +1,28 @@
+[
+  {
+    "path": ["Athena_PlayerState_C_ClassNetCache"],
+    "parseLevel": 1,
+    "type": "ClassNetCache",
+    "properties": {
+      "OnPlayerEliminationFeedUpdated": {
+        "name": "OnPlayerEliminationFeedUpdated",
+        "type": "/Script/FortniteGame.AthenaPlayerState:OnPlayerEliminationFeedUpdated",
+        "isFunction": true,
+        "isCustomStruct": false
+      }
+    }
+  },
+  {
+    "path": ["FortPlayerStateAthena_C_ClassNetCache"],
+    "parseLevel": 1,
+    "type": "ClassNetCache",
+    "properties": {
+      "OnPlayerElimination": {
+        "name": "OnPlayerElimination",
+        "type": "/Script/FortniteGame.FortPlayerStateAthena:OnPlayerElimination",
+        "isFunction": true,
+        "isCustomStruct": false
+      }
+    }
+  }
+]
