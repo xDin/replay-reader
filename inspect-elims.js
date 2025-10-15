@@ -20,8 +20,29 @@ const formatNetId = (value) => {
   return String(value);
 };
 
+const formatDistance = (value) => {
+  if (value === null || value === undefined) {
+    return 'n/a';
+  }
+
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return String(value);
+  }
+
+  if (Math.abs(numeric) >= 100) {
+    return numeric.toFixed(1);
+  }
+
+  if (Math.abs(numeric) >= 10) {
+    return numeric.toFixed(2);
+  }
+
+  return numeric.toFixed(3);
+};
+
 const formatElimination = (elim, index, total) => {
-  const distance = elim.distance ?? 'n/a';
+  const distance = formatDistance(elim.distance);
   const label = typeof index === 'number' && typeof total === 'number'
     ? `${index}/${total}`
     : undefined;
