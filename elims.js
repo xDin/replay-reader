@@ -108,9 +108,25 @@ const createEliminationKey = (elim) => {
   }
 };
 
+const mergeElimination = (target, source) => {
+  if (!target || typeof target !== 'object' || !source || typeof source !== 'object') {
+    return target;
+  }
+
+  Object.keys(source).forEach((key) => {
+    const incomingValue = source[key];
+
+    if (incomingValue !== undefined) {
+      target[key] = incomingValue;
+    }
+  });
+
+  return target;
+};
+
 const makeEliminationHandler = ({ onElimination } = {}) =>
   ({ propertyExportEmitter, parsingEmitter }) => {
-    const seen = new Set();
+    const eliminationsByKey = new Map();
     parsingEmitter.on('log', noop);
     ELIMINATION_EVENTS.forEach((eventName) => {
       propertyExportEmitter.on(
@@ -119,20 +135,31 @@ const makeEliminationHandler = ({ onElimination } = {}) =>
           const normalized = normalizeElimination(data, timeSeconds);
           const key = createEliminationKey(normalized);
 
-          if (key && seen.has(key)) {
-            return;
-          }
-
-          if (key) {
-            seen.add(key);
-          }
-
           result.eliminations ??= {};
           result.eliminations.elims ??= [];
-          result.eliminations.elims.push(normalized);
+
+          let eliminationRecord = normalized;
+          let isNewRecord = true;
+
+          if (key) {
+            const existing = eliminationsByKey.get(key);
+
+            if (existing) {
+              eliminationRecord = mergeElimination(existing, normalized);
+              isNewRecord = false;
+            } else {
+              eliminationsByKey.set(key, normalized);
+            }
+          }
+
+          if (isNewRecord) {
+            result.eliminations.elims.push(eliminationRecord);
+          } else if (!result.eliminations.elims.includes(eliminationRecord)) {
+            result.eliminations.elims.push(eliminationRecord);
+          }
 
           if (typeof onElimination === 'function') {
-            onElimination(normalized, { data, result, timeSeconds });
+            onElimination(eliminationRecord, { data, result, timeSeconds });
           }
         }
       );
