@@ -189,18 +189,6 @@ const mergeElimination = (target, source) => {
   return target;
 };
 
-const combineEliminationData = (propertyElims, rawChunkEvents) => {
-  if (!Array.isArray(propertyElims)) {
-    return [];
-  }
-
-  if (!Array.isArray(rawChunkEvents) || rawChunkEvents.length === 0) {
-    return propertyElims;
-  }
-
-  return propertyElims;
-};
-
 const makeEliminationHandler = ({ onElimination } = {}) =>
   ({ propertyExportEmitter, parsingEmitter }) => {
     const eliminationsByKey = new Map();
@@ -216,21 +204,23 @@ const makeEliminationHandler = ({ onElimination } = {}) =>
           result.eliminations.elims ??= [];
 
           let eliminationRecord = normalized;
+          let isNewRecord = true;
 
           if (key) {
-            const existingEntry = eliminationsByKey.get(key);
+            const existing = eliminationsByKey.get(key);
 
-            if (existingEntry) {
-              const merged = mergeElimination(existingEntry.record, normalized);
-              eliminationRecord = merged;
-              result.eliminations.elims[existingEntry.index] = merged;
-              existingEntry.record = merged;
+            if (existing) {
+              eliminationRecord = mergeElimination(existing, normalized);
+              isNewRecord = false;
             } else {
-              const index = result.eliminations.elims.push(normalized) - 1;
-              eliminationsByKey.set(key, { record: normalized, index });
+              eliminationsByKey.set(key, normalized);
             }
-          } else {
-            result.eliminations.elims.push(normalized);
+          }
+
+          if (isNewRecord) {
+            result.eliminations.elims.push(eliminationRecord);
+          } else if (!result.eliminations.elims.includes(eliminationRecord)) {
+            result.eliminations.elims.push(eliminationRecord);
           }
 
           if (typeof onElimination === 'function') {
