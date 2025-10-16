@@ -17,6 +17,71 @@ const DEFAULT_EXPORTS = [
 ];
 const noop = () => {};
 
+const flattenNetFieldExports = (entries) => {
+  const queue = Array.isArray(entries) ? [...entries] : [];
+  const flattened = [];
+
+  while (queue.length > 0) {
+    const entry = queue.shift();
+
+    if (!entry) {
+      continue;
+    }
+
+    if (Array.isArray(entry)) {
+      queue.unshift(...entry);
+      continue;
+    }
+
+    flattened.push(entry);
+  }
+
+  return flattened;
+};
+
+const getExportIdentifier = (fieldExport) =>
+  fieldExport?.customExportName
+    || fieldExport?.exportName
+    || (Array.isArray(fieldExport?.path) ? fieldExport.path.join('::') : undefined)
+    || fieldExport?.type;
+
+const filterValidNetFieldExports = (entries, { debug = false } = {}) => {
+  const flattened = flattenNetFieldExports(entries);
+  const deduped = [];
+  const indexById = new Map();
+
+  flattened.forEach((fieldExport) => {
+    if (!fieldExport || typeof fieldExport !== 'object') {
+      if (debug) {
+        console.warn('Skipping netFieldExport without an object payload');
+      }
+      return;
+    }
+
+    if (!Array.isArray(fieldExport.path) || fieldExport.path.length === 0) {
+      if (debug) {
+        const identifier = getExportIdentifier(fieldExport) ?? 'unknown';
+        console.warn(`Skipping netFieldExport without a valid path: ${identifier}`);
+      }
+      return;
+    }
+
+    const identifier = getExportIdentifier(fieldExport);
+
+    if (identifier !== undefined && indexById.has(identifier)) {
+      const existingIndex = indexById.get(identifier);
+      deduped[existingIndex] = fieldExport;
+      return;
+    }
+
+    const key = identifier ?? Symbol('netFieldExport');
+    indexById.set(key, deduped.length);
+    deduped.push(fieldExport);
+  });
+
+  return deduped;
+};
+
 const CM_TO_METERS = 0.01;
 
 const sanitizeNumber = (value) => {
@@ -108,9 +173,37 @@ const createEliminationKey = (elim) => {
   }
 };
 
+const mergeElimination = (target, source) => {
+  if (!target || typeof target !== 'object' || !source || typeof source !== 'object') {
+    return target;
+  }
+
+  Object.keys(source).forEach((key) => {
+    const incomingValue = source[key];
+
+    if (incomingValue !== undefined) {
+      target[key] = incomingValue;
+    }
+  });
+
+  return target;
+};
+
+const combineEliminationData = (propertyElims, rawChunkEvents) => {
+  if (!Array.isArray(propertyElims)) {
+    return [];
+  }
+
+  if (!Array.isArray(rawChunkEvents) || rawChunkEvents.length === 0) {
+    return propertyElims;
+  }
+
+  return propertyElims;
+};
+
 const makeEliminationHandler = ({ onElimination } = {}) =>
   ({ propertyExportEmitter, parsingEmitter }) => {
-    const seen = new Set();
+    const eliminationsByKey = new Map();
     parsingEmitter.on('log', noop);
     ELIMINATION_EVENTS.forEach((eventName) => {
       propertyExportEmitter.on(
@@ -119,20 +212,29 @@ const makeEliminationHandler = ({ onElimination } = {}) =>
           const normalized = normalizeElimination(data, timeSeconds);
           const key = createEliminationKey(normalized);
 
-          if (key && seen.has(key)) {
-            return;
-          }
-
-          if (key) {
-            seen.add(key);
-          }
-
           result.eliminations ??= {};
           result.eliminations.elims ??= [];
-          result.eliminations.elims.push(normalized);
+
+          let eliminationRecord = normalized;
+
+          if (key) {
+            const existingEntry = eliminationsByKey.get(key);
+
+            if (existingEntry) {
+              const merged = mergeElimination(existingEntry.record, normalized);
+              eliminationRecord = merged;
+              result.eliminations.elims[existingEntry.index] = merged;
+              existingEntry.record = merged;
+            } else {
+              const index = result.eliminations.elims.push(normalized) - 1;
+              eliminationsByKey.set(key, { record: normalized, index });
+            }
+          } else {
+            result.eliminations.elims.push(normalized);
+          }
 
           if (typeof onElimination === 'function') {
-            onElimination(normalized, { data, result, timeSeconds });
+            onElimination(eliminationRecord, { data, result, timeSeconds });
           }
         }
       );
