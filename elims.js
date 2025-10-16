@@ -42,7 +42,6 @@ const flattenNetFieldExports = (entries) => {
 const getExportIdentifier = (fieldExport) =>
   fieldExport?.customExportName
     || fieldExport?.exportName
-    || (Array.isArray(fieldExport?.path) ? fieldExport.path.join('::') : undefined)
     || fieldExport?.type;
 
 const filterValidNetFieldExports = (entries, { debug = false } = {}) => {
@@ -67,15 +66,21 @@ const filterValidNetFieldExports = (entries, { debug = false } = {}) => {
     }
 
     const identifier = getExportIdentifier(fieldExport);
+    const pathKey = Array.isArray(fieldExport.path) && fieldExport.path.length > 0
+      ? fieldExport.path.join('::')
+      : undefined;
 
-    if (identifier !== undefined && indexById.has(identifier)) {
-      const existingIndex = indexById.get(identifier);
+    const mapKey = identifier !== undefined
+      ? `${identifier}::${pathKey ?? ''}`
+      : Symbol('netFieldExport');
+
+    if (indexById.has(mapKey)) {
+      const existingIndex = indexById.get(mapKey);
       deduped[existingIndex] = fieldExport;
       return;
     }
 
-    const key = identifier ?? Symbol('netFieldExport');
-    indexById.set(key, deduped.length);
+    indexById.set(mapKey, deduped.length);
     deduped.push(fieldExport);
   });
 
@@ -242,6 +247,124 @@ const composeHandlers = (primary, secondary) => {
   };
 };
 
+const normalizeRawEvent = (event) => {
+  if (!event || typeof event !== 'object') {
+    return {};
+  }
+
+  const { eliminator, eliminated, gunType, knocked, timeSeconds } = event;
+
+  const normalizedTime = typeof timeSeconds === 'number'
+    ? Math.round(timeSeconds * 1000) / 1000
+    : undefined;
+
+  return {
+    killer: eliminator,
+    victim: eliminated,
+    weapon: gunType,
+    knocked: knocked !== undefined ? !!knocked : undefined,
+    t: normalizedTime
+  };
+};
+
+const combineEliminationData = (propertyElims, rawChunkEvents) => {
+  const propertyList = Array.isArray(propertyElims) ? propertyElims.slice() : [];
+  const rawEvents = Array.isArray(rawChunkEvents) ? rawChunkEvents : [];
+
+  const propertyByExactKey = new Map();
+  const propertyByLooseKey = new Map();
+
+  propertyList.forEach((elim, index) => {
+    if (!elim || typeof elim !== 'object') {
+      return;
+    }
+
+    const exactKey = createEliminationKey(elim);
+    if (exactKey) {
+      propertyByExactKey.set(exactKey, index);
+    }
+
+    const looseKey = createEliminationKey({ ...elim, t: undefined });
+    if (looseKey) {
+      if (!propertyByLooseKey.has(looseKey)) {
+        propertyByLooseKey.set(looseKey, []);
+      }
+
+      propertyByLooseKey.get(looseKey).push(index);
+    }
+  });
+
+  const usedProperties = new Set();
+  const combined = [];
+
+  rawEvents
+    .filter((event) => event && event.group === 'playerElim')
+    .forEach((event) => {
+      const normalized = normalizeRawEvent(event);
+      let propertyIndex;
+
+      const exactKey = createEliminationKey(normalized);
+      if (exactKey && propertyByExactKey.has(exactKey)) {
+        propertyIndex = propertyByExactKey.get(exactKey);
+      } else {
+        const looseKey = createEliminationKey({ ...normalized, t: undefined });
+        const candidates = looseKey ? propertyByLooseKey.get(looseKey) : undefined;
+
+        if (candidates && candidates.length) {
+          propertyIndex = candidates.find((candidate) => !usedProperties.has(candidate));
+        }
+      }
+
+      if (propertyIndex !== undefined && propertyIndex !== null && !usedProperties.has(propertyIndex)) {
+        const propertyElim = propertyList[propertyIndex] || {};
+        usedProperties.add(propertyIndex);
+
+        combined.push({
+          ...event,
+          killer: event.eliminator ?? propertyElim.killer,
+          victim: event.eliminated ?? propertyElim.victim,
+          weapon: event.gunType ?? propertyElim.weapon,
+          knocked: event.knocked ?? propertyElim.knocked,
+          distance: propertyElim.distance,
+          timeSeconds: event.timeSeconds ?? propertyElim.t,
+          t: propertyElim.t ?? event.timeSeconds,
+        });
+      } else {
+        combined.push({
+          ...event,
+          killer: event.eliminator,
+          victim: event.eliminated,
+          weapon: event.gunType,
+          knocked: event.knocked,
+          distance: undefined,
+          timeSeconds: event.timeSeconds,
+          t: event.timeSeconds,
+        });
+      }
+    });
+
+  propertyList.forEach((propertyElim, index) => {
+    if (usedProperties.has(index)) {
+      return;
+    }
+
+    if (!propertyElim || typeof propertyElim !== 'object') {
+      return;
+    }
+
+    combined.push({
+      killer: propertyElim.killer,
+      victim: propertyElim.victim,
+      weapon: propertyElim.weapon,
+      knocked: propertyElim.knocked,
+      distance: propertyElim.distance,
+      t: propertyElim.t,
+    });
+  });
+
+  return combined;
+};
+
 const loadReplayEliminations = async (buffer, { onElimination, parseOptions = {} } = {}) => {
   const eliminationHandler = makeEliminationHandler({ onElimination });
   const {
@@ -282,13 +405,13 @@ const loadReplayEliminations = async (buffer, { onElimination, parseOptions = {}
   const combinedElims = combineEliminationData(propertyElims, rawChunkEvents);
 
   if (result) {
-    result.events ??= {};
-    result.events.elims = combinedElims;
+    result.eliminations ??= {};
+    result.eliminations.combinedElims = combinedElims;
   }
 
   return {
     result,
-    elims: result?.eliminations?.elims ?? []
+    elims: combinedElims
   };
 };
 

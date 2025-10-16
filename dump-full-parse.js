@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const parse = require('./index');
+const { loadReplayEliminations } = require('./elims');
 
 const usage = 'Usage: node dump-full-parse.js <input.replay> [output.json]';
 
@@ -41,10 +41,12 @@ const replacer = (key, value) => {
 
 (async () => {
   try {
-    const parsed = await parse(replayBuffer, {
-      parseEvents: true,
-      parsePackets: true,
-      parseLevel: 10,
+    const { result: parsed } = await loadReplayEliminations(replayBuffer, {
+      parseOptions: {
+        parseEvents: true,
+        parsePackets: true,
+        parseLevel: 10,
+      },
     });
 
     const json = JSON.stringify(parsed, replacer, 2);
