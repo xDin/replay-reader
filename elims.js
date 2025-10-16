@@ -17,6 +17,71 @@ const DEFAULT_EXPORTS = [
 ];
 const noop = () => {};
 
+const flattenNetFieldExports = (entries) => {
+  const queue = Array.isArray(entries) ? [...entries] : [];
+  const flattened = [];
+
+  while (queue.length > 0) {
+    const entry = queue.shift();
+
+    if (!entry) {
+      continue;
+    }
+
+    if (Array.isArray(entry)) {
+      queue.unshift(...entry);
+      continue;
+    }
+
+    flattened.push(entry);
+  }
+
+  return flattened;
+};
+
+const getExportIdentifier = (fieldExport) =>
+  fieldExport?.customExportName
+    || fieldExport?.exportName
+    || (Array.isArray(fieldExport?.path) ? fieldExport.path.join('::') : undefined)
+    || fieldExport?.type;
+
+const filterValidNetFieldExports = (entries, { debug = false } = {}) => {
+  const flattened = flattenNetFieldExports(entries);
+  const deduped = [];
+  const indexById = new Map();
+
+  flattened.forEach((fieldExport) => {
+    if (!fieldExport || typeof fieldExport !== 'object') {
+      if (debug) {
+        console.warn('Skipping netFieldExport without an object payload');
+      }
+      return;
+    }
+
+    if (!Array.isArray(fieldExport.path) || fieldExport.path.length === 0) {
+      if (debug) {
+        const identifier = getExportIdentifier(fieldExport) ?? 'unknown';
+        console.warn(`Skipping netFieldExport without a valid path: ${identifier}`);
+      }
+      return;
+    }
+
+    const identifier = getExportIdentifier(fieldExport);
+
+    if (identifier !== undefined && indexById.has(identifier)) {
+      const existingIndex = indexById.get(identifier);
+      deduped[existingIndex] = fieldExport;
+      return;
+    }
+
+    const key = identifier ?? Symbol('netFieldExport');
+    indexById.set(key, deduped.length);
+    deduped.push(fieldExport);
+  });
+
+  return deduped;
+};
+
 const CM_TO_METERS = 0.01;
 
 const sanitizeNumber = (value) => {
